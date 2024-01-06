@@ -1,8 +1,12 @@
-use glob::{GlobError, PatternError};
-use std::ffi::OsString;
-use std::fmt::{self, Display};
-use std::io;
-use std::path::PathBuf;
+use {
+    glob::{GlobError, PatternError},
+    std::{
+        ffi::OsString,
+        fmt::{self, Display},
+        io,
+        path::PathBuf,
+    },
+};
 
 #[derive(Debug)]
 pub enum Error {
@@ -39,7 +43,11 @@ impl Display for Error {
             Io(e) => write!(f, "{}", e),
             Metadata(e) => write!(f, "failed to read cargo metadata: {}", e),
             Mismatch => write!(f, "compiler error does not match expected error"),
-            NoWorkspaceManifest => write!(f, "Cargo.toml uses edition.workspace=true, but no edition found in workspace's manifest"),
+            NoWorkspaceManifest => write!(
+                f,
+                "Cargo.toml uses edition.workspace=true, \
+                but no edition found in workspace's manifest"
+            ),
             Open(path, e) => write!(f, "{}: {}", path.display(), e),
             Pattern(e) => write!(f, "{}", e),
             ProjectDir => write!(f, "failed to determine name of project dir"),
@@ -49,11 +57,9 @@ impl Display for Error {
                 write!(f, "expected test case to fail to compile, but it succeeded")
             }
             Toml(e) => write!(f, "{}", e),
-            UpdateVar(var) => write!(
-                f,
-                "unrecognized value of TRYBUILD: {:?}",
-                var.to_string_lossy(),
-            ),
+            UpdateVar(var) => {
+                write!(f, "unrecognized value of TRYBUILD: {:?}", var.to_string_lossy(),)
+            }
             WriteStderr(e) => write!(f, "failed to write stderr file: {}", e),
         }
     }
@@ -63,10 +69,7 @@ impl Error {
     pub fn already_printed(&self) -> bool {
         use self::Error::*;
 
-        matches!(
-            self,
-            CargoFail | Mismatch | RunFailed | ShouldNotHaveCompiled
-        )
+        matches!(self, CargoFail | Mismatch | RunFailed | ShouldNotHaveCompiled)
     }
 }
 
