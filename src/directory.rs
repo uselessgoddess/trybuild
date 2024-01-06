@@ -1,13 +1,12 @@
-use serde::de::{Deserialize, Deserializer};
-use serde_derive::Serialize;
-use std::borrow::Cow;
-use std::env;
-use std::ffi::OsString;
-use std::io;
-use std::path::{Path, PathBuf};
+use std::{
+    borrow::Cow,
+    env,
+    ffi::OsString,
+    io,
+    path::{Path, PathBuf},
+};
 
-#[derive(Clone, Debug, Serialize)]
-#[serde(transparent)]
+#[derive(Clone, Debug)]
 pub struct Directory {
     path: PathBuf,
 }
@@ -49,14 +48,5 @@ impl From<OsString> for Directory {
 impl AsRef<Path> for Directory {
     fn as_ref(&self) -> &Path {
         &self.path
-    }
-}
-
-impl<'de> Deserialize<'de> for Directory {
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        PathBuf::deserialize(deserializer).map(Directory::new)
     }
 }

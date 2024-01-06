@@ -5,12 +5,12 @@ pub enum Render<'a> {
     Unique(&'a str),
 }
 
-#[cfg(all(feature = "diff", not(windows)))]
 mod r#impl {
-    use super::Render;
-    use dissimilar::Chunk;
-    use std::cmp;
-    use std::panic;
+    use {
+        super::Render,
+        dissimilar::Chunk,
+        std::{cmp, panic},
+    };
 
     pub struct Diff<'a> {
         expected: &'a str,
@@ -42,11 +42,7 @@ mod r#impl {
                 return None;
             }
 
-            Some(Diff {
-                expected,
-                actual,
-                diff,
-            })
+            Some(Diff { expected, actual, diff })
         }
 
         pub fn iter<'i>(&'i self, input: &str) -> impl Iterator<Item = Render<'a>> + 'i {
@@ -58,25 +54,6 @@ mod r#impl {
                 Chunk::Insert(unique) if actual => Some(Render::Unique(unique)),
                 _ => None,
             })
-        }
-    }
-}
-
-#[cfg(any(not(feature = "diff"), windows))]
-mod r#impl {
-    use super::Render;
-
-    pub enum Diff {}
-
-    impl Diff {
-        pub fn compute(_expected: &str, _actual: &str) -> Option<Self> {
-            None
-        }
-
-        pub fn iter(&self, _input: &str) -> Box<dyn Iterator<Item = Render>> {
-            let _ = Render::Common;
-            let _ = Render::Unique;
-            match *self {}
         }
     }
 }

@@ -1,14 +1,16 @@
-use once_cell::sync::OnceCell;
-use std::io::{Result, Write};
-use std::sync::{Mutex, MutexGuard, PoisonError};
-use termcolor::{Color, ColorChoice, ColorSpec, StandardStream as Stream, WriteColor};
+use {
+    once_cell::sync::OnceCell,
+    std::{
+        io::{Result, Write},
+        sync::{Mutex, MutexGuard, PoisonError},
+    },
+    termcolor::{Color, ColorChoice, ColorSpec, StandardStream as Stream, WriteColor},
+};
 
 static TERM: OnceCell<Mutex<Term>> = OnceCell::new();
 
 pub fn lock() -> MutexGuard<'static, Term> {
-    TERM.get_or_init(|| Mutex::new(Term::new()))
-        .lock()
-        .unwrap_or_else(PoisonError::into_inner)
+    TERM.get_or_init(|| Mutex::new(Term::new())).lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 pub fn bold() {
@@ -27,7 +29,7 @@ pub fn reset() {
     lock().reset();
 }
 
-#[deny(unused_macros)]
+//[deny(unused_macros)]
 macro_rules! print {
     ($($args:tt)*) => {{
         use std::io::Write;
@@ -35,7 +37,7 @@ macro_rules! print {
     }};
 }
 
-#[deny(unused_macros)]
+//#[deny(unused_macros)]
 macro_rules! println {
     ($($args:tt)*) => {{
         use std::io::Write;

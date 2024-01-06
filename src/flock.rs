@@ -1,12 +1,18 @@
-use crate::error::Result;
-use once_cell::sync::OnceCell;
-use std::fs::{self, File, OpenOptions};
-use std::io;
-use std::path::{Path, PathBuf};
-use std::sync::atomic::{AtomicBool, Ordering};
-use std::sync::{Arc, Mutex, MutexGuard, PoisonError};
-use std::thread;
-use std::time::{Duration, SystemTime};
+use {
+    crate::error::Result,
+    once_cell::sync::OnceCell,
+    std::{
+        fs::{self, File, OpenOptions},
+        io,
+        path::{Path, PathBuf},
+        sync::{
+            atomic::{AtomicBool, Ordering},
+            Arc, Mutex, MutexGuard, PoisonError,
+        },
+        thread,
+        time::{Duration, SystemTime},
+    },
+};
 
 static LOCK: OnceCell<Mutex<()>> = OnceCell::new();
 
@@ -26,27 +32,19 @@ enum Guard {
 // *different* integration tests.
 enum FileLock {
     NotLocked,
-    Locked {
-        path: PathBuf,
-        done: Arc<AtomicBool>,
-    },
+    Locked { path: PathBuf, done: Arc<AtomicBool> },
 }
 
 impl Lock {
     pub fn acquire(path: impl AsRef<Path>) -> Result<Self> {
-        Ok(Lock {
-            intraprocess_guard: Guard::acquire(),
-            lockfile: FileLock::acquire(path)?,
-        })
+        Ok(Lock { intraprocess_guard: Guard::acquire(), lockfile: FileLock::acquire(path)? })
     }
 }
 
 impl Guard {
     fn acquire() -> Self {
         Guard::Locked(
-            LOCK.get_or_init(|| Mutex::new(()))
-                .lock()
-                .unwrap_or_else(PoisonError::into_inner),
+            LOCK.get_or_init(|| Mutex::new(())).lock().unwrap_or_else(PoisonError::into_inner),
         )
     }
 }
@@ -70,10 +68,7 @@ impl FileLock {
 
 impl Drop for Lock {
     fn drop(&mut self) {
-        let Lock {
-            intraprocess_guard,
-            lockfile,
-        } = self;
+        let Lock { intraprocess_guard, lockfile } = self;
         // Unlock file lock first.
         *lockfile = FileLock::NotLocked;
         *intraprocess_guard = Guard::NotLocked;
