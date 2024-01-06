@@ -29,7 +29,8 @@ pub fn reset() {
     lock().reset();
 }
 
-//[deny(unused_macros)]
+#[deny(unused_macros)]
+#[macro_export]
 macro_rules! print {
     ($($args:tt)*) => {{
         use std::io::Write;
@@ -37,7 +38,8 @@ macro_rules! print {
     }};
 }
 
-//#[deny(unused_macros)]
+#[deny(unused_macros)]
+#[macro_export]
 macro_rules! println {
     ($($args:tt)*) => {{
         use std::io::Write;

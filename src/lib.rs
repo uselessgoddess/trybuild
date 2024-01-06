@@ -325,8 +325,6 @@ impl Runner {
             panic!("tests failed");
         });
 
-        println!("{tests:#?}");
-        println!("{project:?}");
         print!("\n\n");
 
         let len = tests.len();
@@ -335,13 +333,10 @@ impl Runner {
         if tests.is_empty() {
             message::no_tests_enabled();
         } else if project.keep_going && !project.has_pass {
-            report = match self.run_all(&project, tests) {
-                Ok(failures) => failures,
-                Err(err) => {
-                    message::test_fail(err);
-                    Report { failures: len, created_wip: 0 }
-                }
-            }
+            report = self.run_all(&project, tests).unwrap_or_else(|err| {
+                message::test_fail(err);
+                Report { failures: len, created_wip: 0 }
+            })
         } else {
             for test in tests {
                 match test.run(&project) {
@@ -392,7 +387,7 @@ mod zxc {
             .map_err(Error::Cargo)
     }
 
-    pub fn run_test(project: &Project, test: &str) -> Result<Output> {
+    pub fn run_test(_: &Project, test: &str) -> Result<Output> {
         Command::new(format!(".artifacts/{test}")).output().map_err(Error::Cargo)
     }
 }

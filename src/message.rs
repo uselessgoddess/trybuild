@@ -2,7 +2,7 @@ use {
     crate::{
         diff::{Diff, Render},
         error::Error,
-        normalize, term, Expected, Test,
+        normalize, print, println, term, Expected, Test,
     },
     std::{env, path::Path, process::Output},
     termcolor::Color::{self, *},
