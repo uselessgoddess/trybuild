@@ -453,8 +453,8 @@ mod zxc {
     pub fn build_test(project: &Project, test: &Path, name: &str) -> Result<Output> {
         zxc()
             .arg(project.dir.join(test))
-            .arg("--out-dir")
-            .arg(".artifacts")
+            .args(["--out-dir", ".artifacts"])
+            .args(["--color", "never"])
             .arg("-o")
             .arg(name)
             .output()
