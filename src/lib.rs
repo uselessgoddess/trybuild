@@ -10,15 +10,21 @@ mod path;
 #[macro_use]
 mod term;
 mod directory;
+mod env;
 
 use {
-    crate::{directory::Directory, error::Error, flock::Lock},
+    crate::{
+        directory::Directory,
+        env::Update,
+        error::Error,
+        flock::Lock,
+        message::{Fail, Warn},
+    },
     std::{
         cell::RefCell,
         collections::HashMap,
-        env,
-        ffi::OsString,
-        fs::File,
+        ffi::{OsStr, OsString},
+        fs::{self, File},
         path::{Path, PathBuf},
         thread,
     },
@@ -97,7 +103,7 @@ impl Runner {
     }
 
     fn filter(tests: &mut Vec<ExpandedTest>) {
-        let filters = env::args_os()
+        let filters = std::env::args_os()
             .flat_map(OsString::into_string)
             .filter_map(|mut arg| {
                 const PREFIX: &str = "trybuild=";
@@ -158,8 +164,7 @@ impl Test {
     ) -> Result<Outcome> {
         let check = match self.expected {
             Expected::Pass => Test::check_pass,
-            //Expected::CompileFail => Test::check_compile_fail,
-            _ => todo!(),
+            Expected::CompileFail => Test::check_compile_fail,
         };
 
         check(
@@ -189,6 +194,73 @@ impl Test {
         output.stdout.splice(..0, build_stdout.bytes());
         message::output(variations, &output);
         if output.status.success() { Ok(Outcome::Passed) } else { Err(Error::RunFailed) }
+    }
+
+    fn check_compile_fail(
+        &self,
+        project: &Project,
+        name: &str,
+        success: bool,
+        build_stdout: &str,
+        variations: &str,
+    ) -> Result<Outcome> {
+        if success {
+            message::should_not_have_compiled();
+            message::fail_output(Fail, build_stdout);
+            message::warnings(variations);
+            return Err(Error::ShouldNotHaveCompiled);
+        }
+
+        let stderr_path = self.path.with_extension("stderr");
+
+        if !stderr_path.exists() {
+            let outcome = match project.update {
+                Update::Wip => {
+                    let wip_dir = Path::new("wip");
+                    fs::create_dir_all(wip_dir)?;
+                    let gitignore_path = wip_dir.join(".gitignore");
+                    fs::write(gitignore_path, "*\n")?;
+                    let stderr_name =
+                        stderr_path.file_name().unwrap_or_else(|| OsStr::new("test.stderr"));
+                    let wip_path = wip_dir.join(stderr_name);
+                    message::write_stderr_wip(&wip_path, &stderr_path, variations);
+                    fs::write(wip_path, variations).map_err(Error::WriteStderr)?;
+                    Outcome::CreatedWip
+                }
+                Update::Overwrite => {
+                    message::overwrite_stderr(&stderr_path, variations);
+                    fs::write(stderr_path, variations).map_err(Error::WriteStderr)?;
+                    Outcome::Passed
+                }
+            };
+            message::fail_output(Warn, build_stdout);
+            return Ok(outcome);
+        }
+
+        let expected =
+            fs::read_to_string(&stderr_path).map_err(Error::ReadStderr)?.replace("\r\n", "\n");
+
+        // if variations.any(|stderr| expected == stderr) {
+        //     message::ok();
+        //     return Ok(Outcome::Passed);
+        // }
+
+        if variations == expected {
+            message::ok();
+            return Ok(Outcome::Passed);
+        }
+
+        match project.update {
+            Update::Wip => {
+                message::mismatch(&expected, variations);
+                Err(Error::Mismatch)
+            }
+            Update::Overwrite => {
+                message::overwrite_stderr(&stderr_path, variations);
+                fs::write(stderr_path, variations).map_err(Error::WriteStderr)?;
+                Ok(Outcome::Passed)
+            }
+        }
     }
 }
 
@@ -231,6 +303,7 @@ impl Drop for TestCases {
 pub struct Project {
     pub dir: Directory,
     pub has_pass: bool,
+    update: Update,
     has_compile_fail: bool,
     pub keep_going: bool,
 }
@@ -267,8 +340,9 @@ impl Runner {
         }
 
         Ok(Project {
-            dir: path!(env::current_dir()? /),
+            dir: path!(std::env::current_dir()? /),
             has_pass: false,
+            update: Update::env()?,
             has_compile_fail,
             keep_going: true,
         })
