@@ -3,16 +3,11 @@ use {
     std::env,
 };
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Default)]
 pub enum Update {
+    #[default]
     Wip,
     Overwrite,
-}
-
-impl Default for Update {
-    fn default() -> Self {
-        Update::Wip
-    }
 }
 
 impl Update {
