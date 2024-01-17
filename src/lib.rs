@@ -446,8 +446,16 @@ mod zxc {
     };
 
     fn zxc() -> Command {
-        Command::new("cargo").args(["run", "--package", "driver"]).output().unwrap();
-        Command::new("../../target/debug/driver")
+        if cfg!(debug_assertions) {
+            Command::new("cargo").args(["build", "--package", "driver"]).output().unwrap();
+        } else {
+            Command::new("cargo")
+                .args(["build", "--release", "--package", "driver"])
+                .output()
+                .unwrap();
+        }
+
+        Command::new("../target/debug/driver")
     }
 
     pub fn build_test(project: &Project, test: &Path, name: &str) -> Result<Output> {
