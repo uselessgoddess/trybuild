@@ -49,8 +49,8 @@ struct ExpandedTest {
 }
 
 impl ExpandedTest {
-    fn run(&self, project: &Project) -> Result<Outcome> {
-        self.test.run(project, &self.name)
+    fn run(&self, project: &Project, codegen: &str) -> Result<Outcome> {
+        self.test.run(project, &self.name, codegen)
     }
 }
 
@@ -145,12 +145,12 @@ struct Stderr {
 }
 
 impl Test {
-    fn run(&self, project: &Project, name: &str) -> Result<Outcome> {
+    fn run(&self, project: &Project, name: &str, codegen: &str) -> Result<Outcome> {
         let show_expected = project.has_pass && project.has_compile_fail;
         message::begin_test(self, show_expected);
         check_exists(&self.path)?;
 
-        let output = zxc::build_test(project, &self.path, name)?;
+        let output = zxc::build_test(project, &self.path, name, codegen)?;
         let stderr = Stderr { success: false, stderr: output.stderr };
         self.check(project, name, &stderr, &String::from_utf8_lossy(&output.stdout))
     }
@@ -294,7 +294,10 @@ impl TestCases {
 impl Drop for TestCases {
     fn drop(&mut self) {
         if !thread::panicking() {
-            self.runner.borrow_mut().run();
+            message::report_codegen("Cranelift");
+            self.runner.borrow_mut().run("cranelift");
+            message::report_codegen("LLVM");
+            self.runner.borrow_mut().run("llvm");
         }
     }
 }
@@ -348,7 +351,12 @@ impl Runner {
         })
     }
 
-    fn run_all(&self, project: &Project, tests: Vec<ExpandedTest>) -> Result<Report> {
+    fn run_all(
+        &self,
+        project: &Project,
+        codegen: &str,
+        tests: Vec<ExpandedTest>,
+    ) -> Result<Report> {
         let mut report = Report { failures: 0, created_wip: 0 };
 
         let mut path_map = HashMap::new();
@@ -366,7 +374,7 @@ impl Runner {
             }
 
             if t.error.is_none() {
-                let output = zxc::build_test(project, &t.test.path, &t.name)?;
+                let output = zxc::build_test(project, &t.test.path, &t.name, codegen)?;
 
                 let stderr = Stderr { success: output.status.success(), stderr: output.stderr };
                 match t.test.check(project, &t.name, &stderr, "") {
@@ -385,7 +393,7 @@ impl Runner {
         Ok(report)
     }
 
-    pub fn run(&mut self) {
+    pub fn run(&mut self, codegen: &str) {
         let mut tests = Self::expand_globs(&self.tests);
         Self::filter(&mut tests);
 
@@ -407,13 +415,13 @@ impl Runner {
         if tests.is_empty() {
             message::no_tests_enabled();
         } else if project.keep_going && !project.has_pass {
-            report = self.run_all(&project, tests).unwrap_or_else(|err| {
+            report = self.run_all(&project, codegen, tests).unwrap_or_else(|err| {
                 message::test_fail(err);
                 Report { failures: len, created_wip: 0 }
             })
         } else {
             for test in tests {
-                match test.run(&project) {
+                match test.run(&project, codegen) {
                     Ok(Outcome::Passed) => {}
                     Ok(Outcome::CreatedWip) => report.created_wip += 1,
                     Err(err) => {
@@ -458,13 +466,14 @@ mod zxc {
         Command::new("../target/debug/driver")
     }
 
-    pub fn build_test(project: &Project, test: &Path, name: &str) -> Result<Output> {
+    pub fn build_test(project: &Project, test: &Path, name: &str, codegen: &str) -> Result<Output> {
         zxc()
             .arg(project.dir.join(test))
             .args(["--out-dir", ".artifacts"])
             .args(["--color", "never"])
             .arg("-o")
             .arg(name)
+            .arg(&format!("-Zcodegen-backend={codegen}"))
             .output()
             .map_err(Error::Cargo)
     }

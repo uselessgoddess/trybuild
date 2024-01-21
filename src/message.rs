@@ -15,6 +15,12 @@ pub(crate) enum Level {
 
 pub(crate) use self::Level::*;
 
+pub(crate) fn report_codegen(codegen: &str) {
+    term::bold_color(Cyan);
+    println!("{codegen}");
+    term::reset();
+}
+
 pub(crate) fn prepare_fail(err: Error) {
     if err.already_printed() {
         return;
